@@ -1,0 +1,9 @@
+# Private research extractions (proprietary Google material — never publish)
+archive/
+# Working files from local test runs
+prompt_draft.md
+DEEP_RESEARCH_*.md
+# OS/editor noise
+Thumbs.db
+Desktop.ini
+.DS_Store
