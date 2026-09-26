@@ -1,4 +1,30 @@
-# teamwork-preview — an open clone of Google Antigravity's multi-agent teamwork command
+<div align="center">
+
+# teamwork-preview
+
+> A structured 9-step interview crafts an approved prompt. An autonomous
+> role-based agent team executes it under adversarial verification.
+> **Nothing launches without explicit user approval.**
+
+![License: MIT](https://img.shields.io/badge/license-MIT-green?style=flat-square)
+![Built for Qoder CLI](https://img.shields.io/badge/built%20for-Qoder%20CLI-blue?style=flat-square)
+![7 role agents](https://img.shields.io/badge/role%20agents-7-lightgrey?style=flat-square)
+![5 team shapes](https://img.shields.io/badge/team%20shapes-5-lightgrey?style=flat-square)
+
+<p align="center">
+  <a href="#contents">Contents</a> ·
+  <a href="#install">Install</a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#fidelity--legal-notes">Fidelity</a> ·
+  <a href="REPORT.md">Deep-research report</a>
+</p>
+
+*An open clone of Google Antigravity's `/teamwork-preview` multi-agent
+teamwork command — two phases, one approved prompt, zero inherited trust.*
+
+</div>
+
+---
 
 A behavioral clone of the `/teamwork-preview` slash command from Google
 Antigravity (IDE + CLI): a two-phase multi-agent workflow where a structured
