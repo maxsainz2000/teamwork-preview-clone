@@ -28,5 +28,16 @@ output):
 - **Blocking** findings (each: file:line, why it violates a criterion, minimal
   fix direction — no prescribed rewrite)
 - Non-blocking observations (record, do not gate on them)
+- Per-axis scorecard, in **exactly** this machine-parseable form, one axis per
+  line, nothing before or after the pattern on that line:
+
+  ```
+  score: <axis-slug> = <n>/5
+  ```
+
+  Use the axis names your brief gives you verbatim, and score every axis —
+  auditors census quality by grepping this line, so a variant spelling
+  (`- score:`, a colon-free form, a bolded label) makes your review invisible
+  to the count and silently corrupts the session-wide numbers.
 
 Quote evidence; a finding without file:line evidence is invalid.

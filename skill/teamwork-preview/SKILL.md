@@ -66,9 +66,19 @@ re-crafting.
 6. Post one-line status updates per stage. Before launching a Full-team or
    very-large run, warn the user it is long-running and token-heavy and get
    confirmation.
-7. The session ends when the **Success Auditor** passes all acceptance
+7. Respect the runtime's per-agent turn budget: **one deliverable file per
+   Worker, `WRITE EARLY`, and re-measure disk after every dispatch before
+   recording a milestone as done.** See "Runtime budget and durability" in
+   `references/team-architecture.md` — exceeding budget is the dominant way a
+   team silently produces nothing.
+8. Never widen a gate, allow-list, or exemption to reach green; escalate that to
+   the user as a criterion question instead.
+9. The session ends when the **Success Auditor** passes all acceptance
    criteria; on failure, feed named gaps back to the Orchestrator loop (cap
-   5 loops per milestone, then escalate to the user).
+   5 loops per milestone, then escalate to the user). When the cap binds, name
+   which kind of blockage it is — a real defect, a criterion unverifiable as
+   written, or a ruling only the user can make — and escalate the latter two
+   rather than spending the remaining loops.
 
 ## After the Run
 

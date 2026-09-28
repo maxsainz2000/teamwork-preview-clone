@@ -26,6 +26,10 @@ Do:
    - development: skip restriction scan; still verify criteria.
 3. Verify the single documented command works from the project root as a fresh
    user would run it.
+4. Re-derive every number you publish. A count that came from a plan, a brief,
+   or another agent's report is a claim until your own command produced it; if
+   your measurement disagrees with the quoted figure, publish yours and name
+   the disagreement. State the exact command next to each count.
 
 Write `audits/audit-report.md`: per-criterion PASS/FAIL table with evidence,
 integrity verdict, and (if any FAIL) the exact named gap for the fix loop —

@@ -3,6 +3,8 @@ archive/
 # Working files from local test runs
 prompt_draft.md
 DEEP_RESEARCH_*.md
+# Session transcript exports — embed private project source, never publish
+*_[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]_[0-9][0-9]-[0-9][0-9].md
 # OS/editor noise
 Thumbs.db
 Desktop.ini

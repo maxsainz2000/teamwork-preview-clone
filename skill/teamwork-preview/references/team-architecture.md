@@ -13,8 +13,8 @@ custom agents (preferred) or built-in fallbacks.
 |------|-----------|----------|
 | **Sentinel** | the main agent running this skill | Takes over on approval. Records the request artifact, distributes work, posts status to the user, triggers final audit, delivers results. |
 | **Project Orchestrator** | Plan or general-purpose subagent | Breaks the approved brief into structured milestones with dependencies and a **file-ownership map** (exclusive files per track, so parallel Workers never touch the same file). Assigns parallel tracks. Between stages, its successor is a **fresh** orchestrator invocation fed only the artifacts (mirrors "spawn fresh successors between stages to preserve context"). |
-| **Explorer** | Explore subagent | Read-only research over the repo/landscape/domain. May run in parallel fan-out (read-only ⇒ safe). Outputs a findings digest artifact. |
-| **Worker** | general-purpose subagent | Implements one milestone with file+terminal tools, restricted to its owned files. Runs its verification commands before reporting. |
+| **Explorer** | `tw-explorer` | Research over the repo/landscape/domain, including web sources. Writes exactly one artifact — its own digest in `findings/` — and never touches the project tree, so it is safe to fan out in parallel. |
+| **Worker** | general-purpose subagent | Implements **one deliverable file** with file+terminal tools, restricted to its owned files. Writes the deliverable's skeleton early and extends it, so a stop mid-flight still leaves content on disk. Runs its verification commands before reporting. |
 | **Critic** | general-purpose subagent, read-mostly | Independent code review for correctness. Never the implementing agent. Emits a review artifact with must-fix / nice-to-fix. |
 | **Challenger** | general-purpose subagent | Adversarial: builds test suites specifically designed to **break** the implementation (the documented "falsifier whose sole job is to break it"). New failing tests are wins, not failures. |
 | **Auditor** | general-purpose subagent | Validates work against the selected **integrity mode** and every acceptance criterion. |
@@ -33,7 +33,8 @@ All output lives under the working directory chosen in Step 8 (default
 <workdir>/
 ├── prompt_draft.md        # copied prompt text (Phase 1 artifact; copy, never reference by path)
 ├── request.md             # goals, constraints, integrity mode, acceptance criteria (from prompt text)
-├── project-plan.md        # milestones, dependencies, parallel tracks, file-ownership map
+├── project-plan.md        # milestones, dependencies, parallel tracks, file-ownership map,
+│                          #   machine-readable milestone status table, dated revision sections
 ├── progress.md            # live milestone tracking; Sentinel updates after every stage
 ├── findings/              # Explorer digests (exNN-<topic>.md)
 ├── reviews/               # Critic reports (per milestone)
@@ -64,13 +65,35 @@ the work and tell the user.
 ## Team-shape pipelines
 
 ### Full team (default — builds, research, ops)
-1. Orchestrator → `project-plan.md` (milestones + ownership map).
-2. Per stage, parallel: Explorers (read-only) → findings.
-3. Parallel Workers per independent milestone (sequential if files overlap).
-4. Per milestone: Critic review → fixes → Challenger suite → fixes (loop until
+1. Orchestrator → `project-plan.md` (milestones + ownership map + status table).
+2. **Harness before content.** Build and self-test the verification gates first,
+   serialized, before the parallel content fan-out. Gates authored in the same
+   wave as the content they judge cannot check that content, and every Worker
+   that wants to self-verify ends up running without one.
+3. Per stage, parallel: Explorers → `findings/` digests.
+4. Parallel Workers per independent milestone (sequential if files overlap),
+   one deliverable file each, written early and extended.
+5. Per milestone: Critic review → fixes → Challenger suite → fixes (loop until
    Challenger passes; cap loops at 5, then escalate to user).
-5. Fresh-stage Orchestrator until plan complete.
-6. Auditor (integrity + criteria) → Success Auditor → deliver or loop back with gaps.
+   For a **non-code deliverable** (spec set, report, roadmap, proof write-up)
+   there is no executable behaviour to mutate — substitute executable probes
+   with: a structural gate over the corpus (schema/ID/citation resolution run
+   against a clean tree), an independent judge against a fixed rubric whose
+   output format is machine-parseable, and citation/reference existence checked
+   mechanically. Adversarial effort goes on the *claims*, not the runtime.
+6. Fresh-stage Orchestrator until plan complete.
+7. Auditor (integrity + criteria) → Success Auditor → deliver or loop back with gaps.
+
+**When the loop cap binds, stop dispatching and name the shape of the blockage.**
+Repeated loops against the same red criterion usually mean one of three things,
+only the first of which another Worker can fix: (a) a real defect in the work;
+(b) a criterion that cannot be verified objectively as written — a universal
+claim over a corpus policed by a sampling spot-check is the classic shape, since
+it is guaranteed to fail eventually and can loop forever; (c) an exemption or
+allow-list entry that only the user can ratify. For (b) and (c) the correct move
+is to **return to the user with the quoted criterion and a proposed narrower
+wording**, not to spend the remaining loops. Record which of the three it is,
+with the measurement that says so.
 
 ### Small, focused team
 One Worker implements → then **repeated adversarial review**: fresh Critic and
@@ -112,9 +135,84 @@ for violations (e.g., grep imports for disallowed deps), not trust Worker report
 
 Long runs consume heavily (users report 20h+ sessions and token-cost complaints).
 Before launching a Full team or very-large-proof run, warn the user and confirm.
-Keep `progress.md` current so an interrupted run can be resumed from artifacts: on
-re-invocation, if `prompt_draft.md` + `project-plan.md` exist in the working dir,
-offer "resume" instead of re-crafting.
+
+## Runtime budget and durability (measured on our own runs, not inferred)
+
+These are hard operating limits of the runtime, and the dominant cause of failed
+milestones. Treat them as design inputs when decomposing, not as accidents to
+recover from.
+
+**A subagent invocation is capped at a finite turn budget (observed: 150 turns).**
+When it is exhausted the agent stops mid-sentence, often *after* doing real work
+and often *before* writing anything. The failure is not evenly distributed: a
+milestone phrased as "survey many files, then author one large artifact" spends
+the whole budget reading and lands nothing. Measured in one run: 4 of 7 Stage-0
+dispatches returned zero or partial deliverables for exactly this reason.
+
+- Decompose to **one deliverable file per Worker invocation**, and say so in the
+  brief. Multiple artifacts in one brief is the single most reliable way to
+  produce an empty directory.
+- Put **`WRITE EARLY: create the file with its headings and first content before
+  any long read, then extend with Edit`** in every Worker and Explorer brief.
+- Bound the reading: tell the agent which files matter, from the plan's measured
+  inventory, rather than letting it rediscover the corpus.
+- A brief may carry numbers, but label them **"a claim to re-check, not a value to
+  copy"** — and require the agent to report the contradiction if its own
+  measurement differs. Numbers transcribed from briefs have been published as
+  measurements and were wrong.
+- If a dispatch returns a turn-limit message, treat the milestone as incomplete:
+  measure what landed, then re-dispatch the **remainder only**, narrowed further,
+  with the already-landed files named so it does not redo them.
+
+**Verify disk after every dispatch — never a report.** Agent-reported success is
+wrong often enough to be treated as unpromising, and it is wrong in both
+directions: agents have reported work complete that never reached disk, reported
+files at line counts disk contradicted, and reported their own work as absent
+while it was landing. The Sentinel must re-measure (`wc`, `grep`, `stat`,
+`git status`) before recording any milestone state.
+
+Corollary, and it burned a session: **do not record a Worker integrity event from
+a single measurement taken while other writers are still running.** One Sentinel
+grepped minutes after a dispatch, found nothing, published the report as
+fabricated, and was wrong — the edits landed later. Re-run after quiescence, twice,
+before accusing.
+
+**Deliverables must survive a destructive agent.** An adversarial probe once
+deleted a session's three main deliverables and replaced them with empty files,
+and the integrity gate stayed green because an empty sanctioned directory is
+invisible to it. Recovery depended on the runtime's private transcript store —
+not a control the session owned. Defenses, in order of strength:
+
+1. Ask about versioning during Phase 1 (see `crafting-workflow.md` Step 8), not
+   after the loss. If the user opts in, the Sentinel commits at every stage
+   boundary with a one-line message naming the stage.
+2. If the workspace must stay unversioned, the Sentinel writes a
+   `progress.md` **snapshot table** at each stage boundary — every deliverable
+   path with its byte size and line count — so silent truncation is detectable
+   at the next boundary rather than at the final gate.
+3. Every gate must fail **loudly and non-zero** when its declared input is
+   missing or empty. A check that exits 0 over an empty directory is worse than
+   no check: it manufactures evidence.
+
+**Evidence has a budget.** Gate transcripts and scorecards accumulate fast (one
+spec session produced ~940 files under `audits/`). Write them under a dated
+`audits/gates/` tree, keep the *latest* full run plus anything a report cites,
+and prune superseded duplicates — record in `audits/verify/README.md` what the
+retention rule is so an auditor knows what absence means.
+
+**Attribute every producer, or the gate manufactures forgery.** If evidence
+files must be named after the agent that wrote them, the naming scheme has to
+admit every role that produces evidence — auditor, critic, challenger, and the
+coordinator — not just milestone ids. A terminating auditor that cannot legally
+sign its own transcript is pushed into borrowing a milestone id and declaring the
+deviation, which corrupts the ownership map the rule exists to protect.
+
+**Resuming.** `progress.md` prose is not a resume mechanism. Read the
+machine-readable milestone status table in `project-plan.md`
+(`id | owner-agent | deliverable files | verification command | state`), verify
+each `landed-verified` row against disk, and continue from the first row that is
+not. On re-invocation, if `prompt_draft.md` + `project-plan.md` exist in the
+working dir, offer "resume" instead of re-crafting.
 
 ## Running a stage (Sentinel duties)
 
@@ -127,6 +225,21 @@ offer "resume" instead of re-crafting.
   behavioral change goes back through a Worker invocation.
 - Before launching Full-team or very-large runs, warn about token/time cost and
   confirm.
+- **Re-measure disk after every dispatch**, before recording any milestone as
+  done, and before deciding a Worker needs re-dispatching. The Agent tool's own
+  success signal is not evidence of content on disk.
+- **Brief every dispatch with**: its one deliverable file, the files it owns,
+  `WRITE EARLY`, the acceptance criteria it must satisfy verbatim, the integrity
+  mode, and any counts you are handing over labelled as claims to re-check rather
+  than values to copy.
+- At each stage boundary, update the milestone status table in `project-plan.md`
+  and take the **durability snapshot** (see "Runtime budget and durability"): a
+  version commit, or a recorded path/size/line table if the workspace is
+  unversioned.
+- Never widen a gate, an allow-list, or an exemption to reach green. A check that
+  cannot be satisfied is escalated to the user as a criterion question; a check
+  the team quietly edited until it passed is an integrity failure regardless of
+  what it then prints.
 
 ## Mode A vs Mode B — how to spawn role agents
 
@@ -145,11 +258,17 @@ body = system prompt; tools gated per file; `Agent` denied on every role so no
 agent delegates further.
 
 **Mode A — built-in fallback (no custom agents loaded).** No `tw-*` agents
-exist: spawn `Explore` for Explorers and `general-purpose` for all other roles,
-and prefix each task message with the corresponding role contract from this
-repo's `agents/tw-<role>.md` body as the role's identity
+exist: spawn `general-purpose` for all roles — `Explore` only for read-only
+lenses, since it cannot write its digest or reach the web — and prefix each task
+message with the corresponding role contract from this repo's
+`agents/tw-<role>.md` body as the role's identity
 block. Expect weaker discipline (tool limits are advisory only) and re-state
 the file-ownership rule verbatim in every Worker task.
+
+**Check the gates before trusting a role.** Mode B detection is not enough: the
+installed `tw-*.md` may be an older copy than this repo's, and a stale tool list
+silently re-creates a limitation the fix removed (`diff` the installed files
+against `agents/` at the start of Phase 2 and say which you are running on).
 
 ## Delegation Protocol (Phase 1 → 2 handoff)
 

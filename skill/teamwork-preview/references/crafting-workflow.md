@@ -107,6 +107,28 @@ section; partial resources still help auditors.
 Reject: self-assessment by the implementer, subjective or unfalsifiable
 criteria, absent criteria, impossible thresholds.
 
+**Give every criterion a pass rule, not just a check.** State, in the criterion
+text, what makes it green: an exhaustive machine check over the whole corpus, or
+a threshold with its sampling basis ("≥15 claims sampled at random from the
+tagged population, zero counterexamples"). This matters most for **universal
+claims** — "no X unless Y", "every Z has W". A universal over a large corpus
+policed by a spot-check is unsatisfiable by construction: however good the work
+is, the sample eventually finds one counterexample and the terminating gate can
+loop forever. Write it instead as either (a) an exhaustive check the machine can
+run over every item, or (b) an explicit tolerance ("≥95% of a ≥30-item disjoint
+sample; counterexamples individually repaired and re-sampled"), and say which.
+
+For a **non-build deliverable** (spec set, research report, roadmap), the forcing
+function is a structural gate the team builds and runs itself — schema/ID/citation
+existence over the corpus — plus an independent judge against a fixed rubric.
+State the rubric's output format in the prompt so a later auditor can count
+scores mechanically; three reviewers writing three score formats has silently
+corrupted a session-wide verdict.
+
+**Count the cost of your verification.** Each criterion is a gate the team must
+build, run, and defend. More than ~4 criteria per requirement buys mostly
+bookkeeping, not assurance.
+
 ### Step 6 — Acceptance criteria
 Convert each verification mechanism into concrete checkable conditions,
 calibrated to purpose: demo = impressive but achievable in budget;
@@ -125,17 +147,35 @@ Ask where files should live; default `~/teamwork_projects/{PROJECT_NAME}` with
 a short lowercase underscore name. Record it as a top-level directive in the
 prompt.
 
+Ask, in the same breath, **how the deliverables are protected from a bad write**,
+and record the answer as a directive — this is the only place it can be decided
+without interrupting the run:
+- `git init` the working directory and commit at every stage boundary
+  (recommended; recovery is then a `git checkout` rather than a transcript
+  replay), or
+- no version control, in which case the Sentinel records a path/size/line
+  snapshot of every deliverable at each stage boundary so truncation is caught at
+  the next one.
+
+If the user has constrained the workspace layout (fixed sub-folders, a closed
+root list, "add nothing to the root"), say plainly that a VCS directory may
+conflict with it and have them pick which rule gives way. Deciding this mid-run
+turns a recovery question into an escalation that stalls the session.
+
 ### Step 9 — Assemble and validate
 Final prompt structure: 1-2 sentence description; working directory line;
-integrity mode line; optional reference material; Requirements (R1..Rn);
-Acceptance Criteria (checkboxes by category).
+integrity mode line; workspace-recovery directive (Step 8); optional reference
+material; Requirements (R1..Rn); Acceptance Criteria (checkboxes by category).
 
 Pre-flight checks before presenting: no unplanned implementation hints; every
-criterion objectively checkable; scope set by user needs; infrastructure
+criterion objectively checkable; **every criterion states its pass rule**
+(exhaustive machine check, or threshold plus sampling basis) and no universal
+claim is policed only by a spot-check; scope set by user needs; infrastructure
 constraints state what/why; an engineer would not feel over-constrained; a
-team could not trivially self-certify; Step 2 opt-in choices (if any) appear
-in the opening in the canonical phrasing; any user-requested team appears in
-their own words.
+team could not trivially self-certify; a recovery directive from Step 8 is
+recorded; ~4 or fewer criteria per requirement; Step 2 opt-in choices (if any)
+appear in the opening in the canonical phrasing; any user-requested team appears
+in their own words.
 
 Then tell the user, in one line, which team shape you expect this to route to
 (describe the outcome, not internals), and ask for approval.
